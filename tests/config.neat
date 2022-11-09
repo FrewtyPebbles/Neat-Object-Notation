@@ -1,0 +1,16 @@
+~dict
+
+<William's classes>
+	"CPSC DATASTRUCTURES"
+	"CPSC DATABASES AND FILESTRUCTURES"
+<->
+
+<Ludia's classes>
+	"CHEMISTRY"
+	"PYTHON/JAVA"
+<->
+
+[names/ages]
+	"William":22
+	"Ludia":21
+[-]
