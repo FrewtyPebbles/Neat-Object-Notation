@@ -11,16 +11,13 @@
       "B+"
     ]
   },
-  "trash": [
-    "yuhdcihufcehusdcvfhksfd",
-    "cljlmjicdamjli",
-    -21.32325,
-    "abc",
-    "abc",
-    "abc",
-    "abc",
-    "abc"
-  ],
+  "trash": {
+    "0": "abc",
+    "1": "abc",
+    "2": "abc",
+    "3": "abc",
+    "4": "abc"
+  },
   "William's classes": [
     "CPSC DATASTRUCTURES",
     "CPSC DATABASES AND FILESTRUCTURES"
@@ -31,6 +28,7 @@
   ],
   "names/ages": {
     "William": 22,
-    "Ludia": 21
+    "Ludia": 21,
+    "jef": 49
   }
 }

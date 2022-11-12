@@ -2,7 +2,7 @@
 
 mod class : 'grades', 'trash'
 
-alias trash_bin : <trash>
+alias trash_bin : [trash]
 
 <William's classes>
 	"CPSC DATASTRUCTURES"
@@ -25,9 +25,9 @@ n_a
 /-/
 
 trash_bin
-	"abc"
-	"abc"
-	"abc"
-	"abc"
-	"abc"
+	- "abc"
+	- "abc"
+	- "abc"
+	- "abc"
+	- "abc"
 /-/

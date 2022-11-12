@@ -94,6 +94,7 @@ pub fn build_tree(token_list: Vec<Box<Token>>, is_dict:bool, file_path:&str, ali
 	let mut aliases:HashMap<String, Vec<VType>> = alias_vec.clone();
 	let mut current_used_stack = &mut tree_stack;
 	let mut alias_scope:(Vec<VType>, Vec<Box<SerializedNode>>) = (vec![], vec![]);// if not empty then use this scope instead
+	let mut num_stack:Vec<i64> = vec![-1];
 	if is_dict {
 		let inner_hm:IndexMap<NDSKeyType, Box<SerializedNode>> = IndexMap::new();
 		current_used_stack.push(Box::new(SerializedNode { value: NDSType::Hashmap(inner_hm) }));
@@ -166,10 +167,9 @@ pub fn build_tree(token_list: Vec<Box<Token>>, is_dict:bool, file_path:&str, ali
 						key_stack.push(NDSKeyType::Str(val));
 					},
 					VType::Null => key_stack.push(NDSKeyType::Null),
-					VType::Alias(val) => {
-						
-					}
+					VType::Alias(val) => {}
 				}
+				num_stack.push(-1);
 				let inner_hm:IndexMap<NDSKeyType, Box<SerializedNode>> = IndexMap::new();
 				current_used_stack.push(Box::new(SerializedNode { value: NDSType::Hashmap(inner_hm) }));
 			},
@@ -206,12 +206,17 @@ pub fn build_tree(token_list: Vec<Box<Token>>, is_dict:bool, file_path:&str, ali
 					key_stack.pop();
 					current_used_stack.pop();
 				}
+				num_stack.pop();
 			},
 			PTok::Setter => {
 				match curr_tok.v_type {
 					VType::Blank => key_stack.push(NDSKeyType::Null),
 					VType::Bool(val) => key_stack.push(NDSKeyType::Bool(val)),
-					VType::Int(val) => key_stack.push(NDSKeyType::Int(val)),
+					VType::Int(val) => {
+						let num_stack_len = num_stack.len();
+						num_stack[num_stack_len - 1] = val.clone();
+						key_stack.push(NDSKeyType::Int(val));
+					},
 					VType::String(val) => key_stack.push(NDSKeyType::Str(val)),
 					VType::Null => key_stack.push(NDSKeyType::Null),
 					VType::Float(_) => {
@@ -225,8 +230,9 @@ pub fn build_tree(token_list: Vec<Box<Token>>, is_dict:bool, file_path:&str, ali
 				//if the last token is a setter then make it a single hashed item
 				let tlist_len = token_list.len();
 				let stack_len = current_used_stack.len();
+				let last_tok = token_list[tlist_len - 2].clone();
 				if tn > 1 {
-					if tlist_len > 1 && token_list[tn - 2].tok == PTok::Setter {
+					if tlist_len > 1 && token_list[tn - 1].tok == PTok::Setter {
 						match &mut current_used_stack[stack_len-1].value {
 							NDSType::Hashmap(hm) => {
 								match curr_tok.v_type {
@@ -252,6 +258,35 @@ pub fn build_tree(token_list: Vec<Box<Token>>, is_dict:bool, file_path:&str, ali
 							},
 							univ => {
 								eprintln!("Error: Attempted to supply a key inside a list. {:?}", univ);
+							}
+						}
+					}
+					else if tlist_len > 1 && token_list[tn - 1].tok == PTok::AutoInc {
+						match &mut current_used_stack[stack_len-1].value {
+							NDSType::Hashmap(hm) => {
+								match curr_tok.v_type {
+									VType::Blank => {},
+									VType::Bool(val) => {
+										hm.insert(NDSKeyType::Int(num_stack.last().unwrap().clone()), Box::new(SerializedNode { value: NDSType::Bool(val) }));
+									},
+									VType::Int(val) => {
+										hm.insert(NDSKeyType::Int(num_stack.last().unwrap().clone()), Box::new(SerializedNode { value: NDSType::Int(val) }));
+									},
+									VType::Float(val) => {
+										hm.insert(NDSKeyType::Int(num_stack.last().unwrap().clone()), Box::new(SerializedNode { value: NDSType::Float(val) }));
+									},
+									VType::String(val) => {
+										hm.insert(NDSKeyType::Int(num_stack.last().unwrap().clone()), Box::new(SerializedNode { value: NDSType::Str(val) }));
+									},
+									VType::Null => {
+										hm.insert(NDSKeyType::Int(num_stack.last().unwrap().clone()), Box::new(SerializedNode { value: NDSType::Null }));
+									},
+									VType::Alias(_) => todo!()
+								}
+								//key_stack.pop();
+							},
+							univ => {
+								eprintln!("Error: Attempted to supply autoincrement inside a list. {:?}", univ);
 							}
 						}
 					}
@@ -350,6 +385,10 @@ pub fn build_tree(token_list: Vec<Box<Token>>, is_dict:bool, file_path:&str, ali
 				alias_set(alias_scope.0.clone(), &mut current_used_stack[0], *alias_scope.1[0].clone());
 				//println!("alias[0] {:?}",alias_scope.1[0]);
 				alias_scope.1 = vec![];
+			}
+			PTok::AutoInc => {
+				let num_stack_len = num_stack.len();
+				num_stack[num_stack_len - 1] += 1;
 			}
 			_ => {}
 		}
