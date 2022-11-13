@@ -1,55 +1,34 @@
 {
-  "section": {
-    "123": [
-      true
+  "grades": {
+    "William": [
+      "C",
+      "F",
+      "B"
     ],
-    "5": 2,
-    "inner section": {
-      "abc": {
-        "true": [
-          "1",
-          5,
-          2
-        ]
-      },
-      "def": [
-        1,
-        2,
-        3,
-        4
-      ]
-    },
-    "list section": [
-      "abc",
-      123,
-      "bla bla bla",
-      {
-        "abc": [
-          1,
-          2,
-          3,
-          4
-        ],
-        "qqq": 4
-      },
-      "",
-      3,
-      [
-        123,
-        456
-      ],
-      {
-        "1": true,
-        "2": false,
-        "3": "abc",
-        "4": null,
-        "apples": [
-          1,
-          2,
-          3,
-          4
-        ]
-      }
+    "Ludia": [
+      "A",
+      "A",
+      "B+"
     ]
+  },
+  "trash": {
+    "0": "abc",
+    "1": "abc",
+    "2": "abc",
+    "3": "abc",
+    "4": "abc"
+  },
+  "William's classes": [
+    "CPSC DATASTRUCTURES",
+    "CPSC DATABASES AND FILESTRUCTURES"
+  ],
+  "Ludia's classes": [
+    "CHEMISTRY",
+    "PYTHON/JAVA"
+  ],
+  "names/ages": {
+    "William": 22,
+    "Ludia": 21,
+    "jef": 49
   }
 }

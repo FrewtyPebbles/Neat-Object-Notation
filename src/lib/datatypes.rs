@@ -1,7 +1,8 @@
-use std::{any::{TypeId}, collections::HashMap};
+use std::any::{TypeId};
+
+use indexmap::IndexMap;
 
 use serde::{Serialize, Serializer, ser::{SerializeMap, SerializeSeq}};
-use serde_json;
 
 pub enum ScopeType {
     None,
@@ -26,6 +27,8 @@ pub enum PTok {
     EList,
     SSection,
     ESection,
+    SAlias,
+    EAlias,
     ELine,
     SLine,
     Literal,
@@ -35,7 +38,8 @@ pub enum PTok {
     AutoInc,
     Blank,
     GlobalList,
-    GlobalDict
+    GlobalDict,
+    Module(String, Vec<Vec<String>>)
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -45,6 +49,7 @@ pub enum VType {
     Int(i64),
     Float(f64),
     String(String),
+    Alias(String),
     Null,
 }
 
@@ -128,7 +133,7 @@ pub enum NDSType {
     //	 The NDSType is the type of structure that the Node is holding
     //	 and is used by member functions to decern how to access data
     //	 within the node.
-    Hashmap(HashMap<NDSKeyType, Box<SerializedNode>>),
+    Hashmap(IndexMap<NDSKeyType, Box<SerializedNode>>),
     List(Vec<Box<SerializedNode>>),
     Int(i64),
     Str(String),
@@ -191,7 +196,7 @@ impl Serialize for SerializedNode {
         }
         else {
             match self.value.clone() {
-                NDSType::Hashmap(val) => {
+                NDSType::Hashmap(mut val) => {
                     let mut map = serializer.serialize_map(Some(val.len()))?;
                     for (key, value) in val.iter() {
                         match key {

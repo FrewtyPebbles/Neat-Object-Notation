@@ -1,14 +1,265 @@
-use std::fs;
-
-use serde::Serialize;
-
-use serde_json::{Error, Value, value::Serializer};
+use std::{fs, path::{Path, PathBuf}, collections::HashMap};
 
 use crate::lib::datatypes::VType;
 
-use super::{datatypes::{PTok, ScopeType, Token, ValWrap}, treebuilder::build_tree, typeconversion::determine_type};
+use super::{
+    datatypes::{PTok, ScopeType, SerializedNode, Token, ValWrap},
+    treebuilder::build_tree,
+    typeconversion::determine_type,
+};
 
-pub fn serialize(file_path: &str) -> Result<Value, Error> {
+pub fn create_mod_token(raw_mod_string: String, origin_file_path:&str, alias_vec:&mut HashMap<String, Vec<VType>>) -> Box<Token> {
+    let mut filepath = PathBuf::from(&fs::canonicalize(Path::new(origin_file_path)).ok().unwrap());
+    {
+        let mut ans = filepath.ancestors();
+        ans.next();
+        filepath = PathBuf::from(ans.next().unwrap().to_str().unwrap());
+    }
+    let mut is_quoting = ' ';
+    let mut quote_buffer = String::new();
+    let mut path_buffer = String::new();
+    let mut is_mod = true;
+    let mut last_char = ' ';
+    let mut objects:Vec<Vec<String>> = vec![];
+    let mut object_buffer:Vec<String> = vec![];
+    for chr in raw_mod_string.chars() {
+        match chr {
+            '"' => {
+                if is_quoting == '"' {
+                    is_quoting = ' '
+                } else if is_quoting == ' ' {
+                    is_quoting = '"';
+                } else {
+                    quote_buffer.push(chr);
+                }
+            }
+            '\'' => {
+                if is_quoting == '\'' {
+                    is_quoting = ' ';
+                } else if is_quoting == ' ' {
+                    is_quoting = '\'';
+                } else {
+                    quote_buffer.push(chr);
+                }
+            }
+            '?' | ':' | '=' => {
+                if is_quoting == '\'' {
+                    quote_buffer.push(chr);
+                } else if is_quoting == '"' {
+                    quote_buffer.push(chr);
+                } else {
+                    is_mod = false;//marks the end of the mod path
+                    filepath.push(path_buffer.trim().clone());
+                    path_buffer = String::new()
+                }
+            }
+            '.' => {
+                if is_mod {
+                    if is_quoting == '\'' {
+                        quote_buffer.push(chr);
+                    } else if is_quoting == '"' {
+                        quote_buffer.push(chr);
+                    } else if last_char == '.' {
+                        let mut ans = filepath.ancestors();
+                        ans.next();
+                        filepath = PathBuf::from(ans.next().unwrap().to_str().unwrap());
+                    } else {
+                        filepath.push(path_buffer.trim().clone());
+                        path_buffer = String::new();
+                    }
+                } else {
+                    if is_quoting == '\'' {
+                        quote_buffer.push(chr);
+                    } else if is_quoting == '"' {
+                        quote_buffer.push(chr);
+                    } else {
+                        object_buffer.push(quote_buffer);
+                        quote_buffer = String::new();
+                    }
+                }
+            }
+            ',' => {
+                if is_mod {
+                    if is_quoting == '\'' {
+                        quote_buffer.push(chr);
+                    } else if is_quoting == '"' {
+                        quote_buffer.push(chr);
+                    }
+                } else {
+                    if is_quoting == '\'' {
+                        quote_buffer.push(chr);
+                    } else if is_quoting == '"' {
+                        quote_buffer.push(chr);
+                    } else {
+                        object_buffer.push(quote_buffer);
+                        objects.push(object_buffer);
+                        quote_buffer = String::new();
+                        object_buffer = vec![];
+                    }
+                }
+            }
+            _ => {
+                if is_quoting == '\'' || is_quoting == '"' {
+                    quote_buffer.push(chr);
+                } else {
+                    path_buffer.push(chr);
+                }
+            }
+        }
+        last_char = chr;
+    }
+    filepath.set_extension("neat");
+    object_buffer.push(quote_buffer);
+    objects.push(object_buffer);
+    return Box::new(Token {
+        v_type: VType::Blank,
+        tok: PTok::Module(filepath.as_path().to_str().unwrap().to_string(), objects),
+    });
+}
+
+pub fn create_alias_token(raw_alias_string: String, mut alias_vec:&mut HashMap<String, Vec<VType>>){
+    let mut alias_name = String::new();
+    let mut is_quoting = ' ';
+    let mut last_char = ' ';
+    let mut alias_name = String::new();
+    let mut is_lhs = true;
+    let mut quote_buffer = String::new();
+    let mut object_path:Vec<VType> = vec![];
+    for chr in raw_alias_string.chars() {
+        match chr {
+            '"' => {
+                if is_quoting == '"' {
+                    is_quoting = ' ';
+                    object_path.push(VType::String(quote_buffer.clone()));
+                    quote_buffer = String::new();
+                } else if is_quoting == ' ' {
+                    is_quoting = '"';
+                } else {
+                    quote_buffer.push(chr);
+                }
+            }
+            '\'' => {
+                if is_quoting == '\'' {
+                    is_quoting = ' ';
+                    object_path.push(VType::String(quote_buffer.clone()));
+                    quote_buffer = String::new();
+                } else if is_quoting == ' ' {
+                    is_quoting = '\'';
+                } else {
+                    quote_buffer.push(chr);
+                }
+            }
+            '['|'{' => {
+                if is_quoting == ' ' {
+                    is_quoting = '[';
+                } else {
+                    quote_buffer.push(chr);
+                }
+            }
+            ']'|'}' => {
+                if is_quoting == '[' {
+                    is_quoting = ' ';
+                    object_path.push(VType::String(quote_buffer.clone()));
+                    quote_buffer = String::new();
+                } else {
+                    quote_buffer.push(chr);
+                }
+            }
+            '<'|'(' => {
+                if is_quoting == ' ' {
+                    is_quoting = '<';
+                } else {
+                    quote_buffer.push(chr);
+                }
+            }
+            '>'|')' => {
+                if is_quoting == '<' {
+                    is_quoting = ' ';
+                    object_path.push(VType::String(quote_buffer.clone()));
+                    quote_buffer = String::new();
+                } else {
+                    quote_buffer.push(chr);
+                }
+            }
+            ' ' => {
+                is_lhs = false;
+                if is_quoting != ' ' {
+                    quote_buffer.push(chr);
+                } else if is_quoting == ' ' && quote_buffer.trim() != "" {
+                    if quote_buffer.chars().all(|charr| charr.is_numeric()) {
+                        object_path.push(VType::Int(quote_buffer.parse::<i64>().unwrap()));
+                        quote_buffer = String::new();
+                    } else if vec![
+                        "true",
+                        "t",
+                        "yes",
+                        "y",
+                        "yup",
+                        "affirmative",
+                        "yep",
+                        "correct",
+                        "right",
+                        "positive",
+                    ]
+                    .contains(&quote_buffer.clone().to_lowercase().as_str())
+                    {
+                        object_path.push(VType::Bool(true));
+                        quote_buffer = String::new();
+                    } else if vec![
+                        "false", "f", "no", "n", "nope", "nada", "never", "not", "wrong",
+                        "negative",
+                    ]
+                    .contains(&quote_buffer.clone().to_lowercase().as_str())
+                    {
+                        object_path.push(VType::Bool(false));
+                        quote_buffer = String::new();
+                    } else if vec![
+                        "idk",
+                        "?",
+                        "null",
+                        "/",
+                        "na",
+                        "none",
+                        "untitled",
+                        "empty",
+                        "nonapplicable",
+                    ]
+                    .contains(&quote_buffer.clone().to_lowercase().as_str())
+                    {
+                        object_path.push(VType::Null);
+                        quote_buffer = String::new();
+                    }
+                }
+            }
+            '\t' => {
+                is_lhs = false;
+                if is_quoting != ' ' {
+                    quote_buffer.push(chr);
+                }
+            }
+            '=' | ':' => {
+                is_lhs = false;
+                if is_quoting != ' ' {
+                    quote_buffer.push(chr);
+                }
+            }
+            _ => {
+                if is_quoting != ' ' {
+                    quote_buffer.push(chr);
+                } else if is_lhs {
+                    alias_name.push(chr);
+                } else {
+                    quote_buffer.push(chr);
+                }
+            }
+        }
+        last_char = chr;
+    }
+    //println!("{}: {:?}\n\n", alias_name,object_path);
+    alias_vec.insert(alias_name.clone(), object_path);
+}
+
+pub fn serialize(file_path: &str, alias_vec:&HashMap<String, Vec<VType>>) -> Box<SerializedNode> {
     let file_content = fs::read_to_string(file_path).unwrap();
     let mut token_vec: Vec<Box<Token>> = vec![];
     let mut val_wrap = ValWrap::None;
@@ -17,9 +268,10 @@ pub fn serialize(file_path: &str) -> Result<Value, Error> {
     let mut string_buffer = String::new();
     let mut last_character = '\t';
     let mut is_dict = true;
+    let mut alias_list:HashMap<String, Vec<VType>> = alias_vec.clone();
     for (ln, raw_line) in file_content.clone().split("\n").enumerate() {
-    	let temp_line = format!("{} ", raw_line.trim());
-		let line = temp_line.as_str();
+        let temp_line = format!("{} ", raw_line.trim());
+        let line = temp_line.as_str();
         if line == "" || line.starts_with("|") {
             continue;
         }
@@ -27,55 +279,110 @@ pub fn serialize(file_path: &str) -> Result<Value, Error> {
         else if vec!["[-] ", "# "].contains(&line) {
             token_vec.push(Box::new(Token {
                 v_type: VType::Blank,
-                tok: PTok::ESection
+                tok: PTok::ESection,
             }));
             continue;
         } else if vec!["<-> ", "~ "].contains(&line) {
             token_vec.push(Box::new(Token {
                 v_type: VType::Blank,
-                tok: PTok::EList
+                tok: PTok::EList,
+            }));
+            continue;
+        } else if line.trim() == "/-/" {
+            token_vec.push(Box::new(Token {
+                v_type: VType::Blank,
+                tok: PTok::EAlias,
             }));
             continue;
         } else if vec!["< ", "( "].contains(&line) {
             token_vec.push(Box::new(Token {
                 v_type: VType::Blank,
-                tok: PTok::SList
+                tok: PTok::SList,
             }));
             continue;
         } else if vec!["> ", ") "].contains(&line) {
             token_vec.push(Box::new(Token {
                 v_type: VType::Blank,
-                tok: PTok::EList
+                tok: PTok::EList,
             }));
             continue;
-        } else if vec!["[ ","{ "].contains(&line) {
+        } else if vec!["[ ", "{ "].contains(&line) {
             token_vec.push(Box::new(Token {
                 v_type: VType::Blank,
-                tok: PTok::SSection
+                tok: PTok::SSection,
             }));
             continue;
-        } else if vec!["] ","} "].contains(&line) {
+        } else if vec!["] ", "} "].contains(&line) {
             token_vec.push(Box::new(Token {
                 v_type: VType::Blank,
-                tok: PTok::ESection
+                tok: PTok::ESection,
             }));
             continue;
-        } else if vec!["~list ", "~l ", "~<> ", "~> ", "~< ", "~vec ", "~vector ", "~v ", "~array ", "~a ", "~() ", "~) ", "~( "].contains(&line) {
+        } else if vec![
+            "~list ", "~l ", "~<> ", "~> ", "~< ", "~vec ", "~vector ", "~v ", "~array ", "~a ",
+            "~() ", "~) ", "~( ",
+        ]
+        .contains(&line)
+        {
             is_dict = false;
             continue;
-        } else if vec!["~dict ", "~section ", "~sect ", "~sec ", "~s ", "~d ", "~[] ", "~{} ", "~{ ", "~} ", "~[ ", "~] ", "~section "].contains(&line) {
+        } else if vec![
+            "~dict ",
+            "~section ",
+            "~sect ",
+            "~sec ",
+            "~s ",
+            "~d ",
+            "~[] ",
+            "~{} ",
+            "~{ ",
+            "~} ",
+            "~[ ",
+            "~] ",
+            "~section ",
+        ]
+        .contains(&line)
+        {
             is_dict = true;
+            continue;
+        } else if line.starts_with("mod ") {
+            token_vec.push(create_mod_token(
+                line.strip_prefix("mod ")
+                    .unwrap()
+                    .trim()
+                    .replace("\t", ""),
+                    file_path.clone(),
+                    &mut alias_list
+            ));
+            continue;
+        } else if line.starts_with("alias ") {
+            create_alias_token(
+                line.strip_prefix("alias ")
+                    .unwrap()
+                    .trim()
+                    .replace("\t", ""),
+                    &mut alias_list
+                );
+            continue;
+        } else if alias_list.keys().collect::<Vec<&String>>().contains(&&raw_line.trim().to_string()) {
+            token_vec.push(Box::new(Token {
+                v_type: VType::Alias(raw_line.trim().to_string().clone()),
+                tok: PTok::SAlias,
+            }));
             continue;
         }
         //
 
         //LINE LOOP
         for (cn, curr_character) in line.clone().chars().enumerate() {
+            if curr_character ==' ' && last_character == '-' {
+                string_buffer.pop();
+            }
             if val_wrap == ValWrap::None {
                 if curr_character.is_alphanumeric()
                     || curr_character == '?'
                     || curr_character == '/'
-                    || (curr_character == '.' && string_buffer.chars().all(char::is_numeric))
+                    || curr_character == '.'
                 {
                     string_buffer.push(curr_character.clone());
                     continue;
@@ -96,7 +403,7 @@ pub fn serialize(file_path: &str) -> Result<Value, Error> {
                     {
                         token_vec.push(Box::new(Token {
                             v_type: VType::Bool(true),
-                            tok: PTok::Literal
+                            tok: PTok::Literal,
                         }));
                     } else if vec![
                         "false", "f", "no", "n", "nope", "nada", "never", "not", "wrong",
@@ -123,22 +430,23 @@ pub fn serialize(file_path: &str) -> Result<Value, Error> {
                     {
                         token_vec.push(Box::new(Token {
                             v_type: VType::Null,
-                            tok: PTok::Literal
+                            tok: PTok::Literal,
                         }));
-                    }else if string_buffer
-                        .chars()
-                        .all(|il_char| il_char.is_numeric())
-                    {
+                    } else if string_buffer.chars().enumerate().all(|(ilcn, il_char)| il_char.is_numeric() || (ilcn == 0 && il_char == '-')) {
                         token_vec.push(Box::new(Token {
                             v_type: determine_type(VType::Int(0), string_buffer.clone()),
                             tok: PTok::Literal,
                         }));
                     } else if string_buffer
-                        .chars()
-                        .all(|il_char| il_char.is_numeric() || il_char == '.')
+                        .chars().enumerate().all(|(ilcn, il_char)| il_char.is_numeric() || (ilcn == 0 && il_char == '-') || il_char=='.')
                     {
                         token_vec.push(Box::new(Token {
                             v_type: determine_type(VType::Float(0.0), string_buffer.clone()),
+                            tok: PTok::Literal,
+                        }));
+                    } else {
+                        token_vec.push(Box::new(Token {
+                            v_type: VType::Alias(string_buffer.clone()),
                             tok: PTok::Literal,
                         }));
                     }
@@ -151,7 +459,7 @@ pub fn serialize(file_path: &str) -> Result<Value, Error> {
                         if token_vec.last().clone().unwrap().tok == PTok::Setter {
                             let new_tok = Box::new(Token {
                                 v_type: token_vec[token_vec.len() - 1].v_type.clone(),
-                                tok: PTok::SList
+                                tok: PTok::SList,
                             });
                             token_vec.pop();
                             token_vec.push(new_tok);
@@ -172,21 +480,21 @@ pub fn serialize(file_path: &str) -> Result<Value, Error> {
                         if token_vec.last().clone().unwrap().tok == PTok::Setter {
                             let new_tok = Box::new(Token {
                                 v_type: token_vec[token_vec.len() - 1].v_type.clone(),
-                                tok: PTok::SSection
+                                tok: PTok::SSection,
                             });
                             token_vec.pop();
                             token_vec.push(new_tok);
                         } else {
                             token_vec.push(Box::new(Token {
                                 v_type: VType::Blank,
-                                tok: PTok::SSection
+                                tok: PTok::SSection,
                             }));
                         }
                     }
                     '}' => {
                         token_vec.push(Box::new(Token {
                             v_type: VType::Blank,
-                            tok: PTok::ESection
+                            tok: PTok::ESection,
                         }));
                     }
                     '"' => {
@@ -196,21 +504,24 @@ pub fn serialize(file_path: &str) -> Result<Value, Error> {
                         val_wrap = ValWrap::StringSingle;
                     }
                     ',' => {}
-                    '-' => {
-						token_vec.push(Box::new(Token {
-                            v_type: VType::Blank,
-                            tok: PTok::AutoInc
-                        }));
-					}
+                    '-' => {string_buffer.push(curr_character)}
                     ':' | '=' => {
                         let new_tok = Box::new(Token {
                             v_type: token_vec[token_vec.len() - 1].v_type.clone(),
-                            tok: PTok::Setter
+                            tok: PTok::Setter,
                         });
                         token_vec.pop();
                         token_vec.push(new_tok);
                     }
-                    ' ' => {}
+                    ' ' => {
+                        if last_character == '-' {
+                            string_buffer.pop();
+                            token_vec.push(Box::new(Token {
+                                v_type: VType::Blank,
+                                tok: PTok::AutoInc,
+                            }));
+                        }
+                    }
                     _ => {
                         // Handle Keywords
                     }
@@ -223,10 +534,9 @@ pub fn serialize(file_path: &str) -> Result<Value, Error> {
                             if string_buffer == "-" {
                                 token_vec.push(Box::new(Token {
                                     v_type: VType::Blank,
-                                    tok: PTok::ESection
+                                    tok: PTok::ESection,
                                 }));
-                            }
-                            else {
+                            } else {
                                 token_vec.push(Box::new(Token {
                                     v_type: VType::String(string_buffer.clone()),
                                     tok: PTok::SSection,
@@ -244,10 +554,9 @@ pub fn serialize(file_path: &str) -> Result<Value, Error> {
                             if string_buffer == "-" {
                                 token_vec.push(Box::new(Token {
                                     v_type: VType::Blank,
-                                    tok: PTok::ESection
+                                    tok: PTok::ESection,
                                 }));
-                            }
-                            else {
+                            } else {
                                 token_vec.push(Box::new(Token {
                                     v_type: VType::String(string_buffer.clone()),
                                     tok: PTok::SList,
@@ -291,6 +600,6 @@ pub fn serialize(file_path: &str) -> Result<Value, Error> {
             last_character = curr_character.clone();
         }
     }
-    //println!("{:?}",token_vec);
-    return build_tree(token_vec, is_dict).clone().serialize(Serializer);
+    //println!("{:?}", token_vec);
+    return build_tree(token_vec, is_dict, file_path, &alias_list)
 }
