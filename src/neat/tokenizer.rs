@@ -1,6 +1,6 @@
 use std::{fs, path::{Path, PathBuf}, collections::HashMap};
 
-use crate::lib::datatypes::VType;
+use crate::neat::datatypes::VType;
 
 use super::{
     datatypes::{PTok, ScopeType, SerializedNode, Token, ValWrap},
@@ -108,9 +108,13 @@ pub fn create_mod_token(raw_mod_string: String, origin_file_path:&str, alias_vec
         }
         last_char = chr;
     }
+    if is_mod {
+        filepath.push(path_buffer.trim().clone());
+    } else {
+        object_buffer.push(quote_buffer);
+        objects.push(object_buffer);
+    }
     filepath.set_extension("neat");
-    object_buffer.push(quote_buffer);
-    objects.push(object_buffer);
     return Box::new(Token {
         v_type: VType::Blank,
         tok: PTok::Module(filepath.as_path().to_str().unwrap().to_string(), objects),
@@ -355,9 +359,28 @@ pub fn serialize(file_path: &str, alias_vec:&HashMap<String, Vec<VType>>) -> Box
                     &mut alias_list
             ));
             continue;
+        } else if line.starts_with("* ") {
+            token_vec.push(create_mod_token(
+                line.strip_prefix("* ")
+                    .unwrap()
+                    .trim()
+                    .replace("\t", ""),
+                    file_path.clone(),
+                    &mut alias_list
+            ));
+            continue;
         } else if line.starts_with("alias ") {
             create_alias_token(
                 line.strip_prefix("alias ")
+                    .unwrap()
+                    .trim()
+                    .replace("\t", ""),
+                    &mut alias_list
+                );
+            continue;
+        } else if line.starts_with("@ ") {
+            create_alias_token(
+                line.strip_prefix("@ ")
                     .unwrap()
                     .trim()
                     .replace("\t", ""),

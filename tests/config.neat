@@ -1,8 +1,5 @@
 ~dict
-
-mod class : 'grades', 'trash'
-
-alias trash_bin : [trash]
+mod class : 'grades'
 
 <William's classes>
 	"CPSC DATASTRUCTURES"
@@ -21,13 +18,12 @@ alias trash_bin : [trash]
 alias n_a : [names/ages]
 
 n_a
-	"jef":49
-/-/
-
-trash_bin
-	- "abc"
-	- "abc"
-	- "abc"
-	- "abc"
-	- "abc"
+	"Jef":49
+	[Mary]
+		"abc":22
+	[-]
+	alias mar : [Mary]
+	mar
+		"def":123
+	/-/
 /-/

@@ -2,12 +2,13 @@ use std::{collections::HashMap, slice::Iter};
 
 use indexmap::IndexMap;
 
-use crate::lib::datatypes::VType;
+use crate::neat::datatypes::VType;
 
 use super::{datatypes::{Token, SerializedNode, NDSType, PTok, NDSKeyType}, tokenizer::serialize};
 
 fn alias_get(alias:String, aliases:HashMap<String, Vec<VType>>, mut curr_scope:&mut Vec<Box<SerializedNode>>){
 	let curr_a_list = aliases[&alias].clone();
+	//println!("{:?}", curr_a_list);
 	for curr_key in curr_a_list.iter() {
 		match &curr_scope[0].value {
 			NDSType::Hashmap(val) => {
@@ -19,7 +20,7 @@ fn alias_get(alias:String, aliases:HashMap<String, Vec<VType>>, mut curr_scope:&
 						curr_scope[0] = val[&NDSKeyType::Int(v.clone())].clone();
 					},
 					VType::String(v) => {
-						//println!("{}", v);
+						println!("{:?}, k={}",val, v);
 						curr_scope[0] = val[&NDSKeyType::Str(v.clone())].clone();
 					},
 					VType::Null => {
@@ -93,7 +94,7 @@ pub fn build_tree(token_list: Vec<Box<Token>>, is_dict:bool, file_path:&str, ali
 	let mut key_stack:Vec<NDSKeyType> = vec![NDSKeyType::Blank];
 	let mut aliases:HashMap<String, Vec<VType>> = alias_vec.clone();
 	let mut current_used_stack = &mut tree_stack;
-	let mut alias_scope:(Vec<VType>, Vec<Box<SerializedNode>>) = (vec![], vec![]);// if not empty then use this scope instead
+	let mut alias_scope:(Vec<Vec<VType>>, Vec<Vec<Box<SerializedNode>>>) = (vec![], vec![]);// if not empty then use this scope instead
 	let mut num_stack:Vec<i64> = vec![-1];
 	if is_dict {
 		let inner_hm:IndexMap<NDSKeyType, Box<SerializedNode>> = IndexMap::new();
@@ -344,10 +345,19 @@ pub fn build_tree(token_list: Vec<Box<Token>>, is_dict:bool, file_path:&str, ali
 				//else append it to the top list
 			},
 			PTok::Module(path, objects) => {
+				let ts_last_ind = current_used_stack.len()-1;
 				let module = serialize(path.as_str(), alias_vec);
+				let mut current_key = path.split("\\").collect::<Vec<&str>>().last().unwrap().strip_suffix(".neat").unwrap().to_string();
+				if objects.len() == 0 {
+					match &mut current_used_stack[ts_last_ind].value {
+						NDSType::Hashmap(val) => {val.insert(NDSKeyType::Str(current_key), module.clone());},
+						NDSType::List(val) => {val.push(module.clone());},
+						_ => {}
+					}
+				}
 				for object_path in objects.iter() {
 					let mut current_ds = module.clone();
-					let mut current_key = String::new();
+					current_key = path.split("\\").collect::<Vec<&str>>().last().unwrap().strip_suffix(".neat").unwrap().to_string();
 					for object in object_path.iter() {
 						current_key = object.to_string();
 						current_ds = match current_ds.value {
@@ -361,7 +371,6 @@ pub fn build_tree(token_list: Vec<Box<Token>>, is_dict:bool, file_path:&str, ali
 						};
 						
 					}
-					let ts_last_ind = current_used_stack.len()-1;
 					match &mut current_used_stack[ts_last_ind].value {
 						NDSType::Hashmap(val) => {val.insert(NDSKeyType::Str(current_key), current_ds);},
 						NDSType::List(val) => {val.push(current_ds.clone());},
@@ -372,19 +381,37 @@ pub fn build_tree(token_list: Vec<Box<Token>>, is_dict:bool, file_path:&str, ali
 			PTok::SAlias => {
 				match curr_tok.v_type {
 					VType::Alias(val) => {
-						alias_scope.1.push(tree_stack[0].clone());
-						alias_scope.0 = aliases[&val].clone();
-						current_used_stack = &mut alias_scope.1;
+						let alias_scope_1_len = alias_scope.1.len();
+						if alias_scope_1_len != 0 {
+							alias_scope.1.push(alias_scope.1[alias_scope_1_len - 1].clone());
+						} else {
+							alias_scope.1.push(vec![tree_stack[0].clone()]);
+						}
+						alias_scope.0.push(aliases[&val].clone());
+						current_used_stack = &mut alias_scope.1[alias_scope_1_len];
 						alias_get(val, aliases.clone(), &mut current_used_stack);
 					},
 					_ => {}
 				}
 			},
 			PTok::EAlias => {
-				current_used_stack = &mut tree_stack;
-				alias_set(alias_scope.0.clone(), &mut current_used_stack[0], *alias_scope.1[0].clone());
+				println!("{:?}", alias_scope);
+				let mut alias_scope_1_len = alias_scope.1.len();
+				let mut alias_scope_0_len = alias_scope.0.len();
+				let mut sets_scope = *alias_scope.1[alias_scope_1_len - 1][0].clone();
+				let mut curr_aliases = alias_scope.0[alias_scope_0_len - 1].clone();
+				alias_scope.0.pop();
+				alias_scope.1.pop();
+				alias_scope_1_len = alias_scope.1.len();
+				alias_scope_0_len = alias_scope.0.len();
+				if alias_scope_1_len != 0 {
+					current_used_stack = &mut alias_scope.1[alias_scope_1_len - 1];
+				} else {
+					current_used_stack = &mut tree_stack;
+				}
+				alias_set(curr_aliases, &mut current_used_stack[0], sets_scope);
 				//println!("alias[0] {:?}",alias_scope.1[0]);
-				alias_scope.1 = vec![];
+				
 			}
 			PTok::AutoInc => {
 				let num_stack_len = num_stack.len();
@@ -393,5 +420,6 @@ pub fn build_tree(token_list: Vec<Box<Token>>, is_dict:bool, file_path:&str, ali
 			_ => {}
 		}
 	}
+	
 	return tree_stack[0].clone();
 }
