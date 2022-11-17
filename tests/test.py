@@ -1,3 +1,3 @@
-import neat_py
+import neat_notation
 
-print(neat_py.load("tests/test.neat"))
+print(neat_notation.load("tests/test.neat"))

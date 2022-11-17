@@ -9,10 +9,9 @@ classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: Microsoft :: Windows"
+    "License :: OSI Approved :: MIT License"
 ]
-version = "0.4.12"
+version = "0.4.13"
 authors = [
   { name="William A. Lim", email="frewtypebbles@gmail.com" },
 ]
