@@ -1,28 +1,23 @@
-pub mod neat;
+use pyo3::prelude::*;
+use std::{collections::HashMap};
 
-use std::{collections::HashMap, ffi::{CString, CStr}};
-
-use libc::c_char;
 use neat::tokenizer::serialize;
-use serde::Serialize;
-use serde_json::value::Serializer;
 
 use crate::neat::datatypes::VType;
-#[no_mangle]
-pub extern fn load(file_path: *const c_char) -> *mut c_char {
-    let aliases: HashMap<String, Vec<VType>> = HashMap::new();
-	let mut c_string = String::new();
-	unsafe {
-		c_string = CStr::from_ptr(file_path).to_str().unwrap().to_string();
-	}
-	println!("{}", c_string);
-    CString::new(
-        serialize(&c_string, &aliases)
-            .serialize(Serializer)
-            .unwrap()
-            .as_str()
-            .unwrap(),
-    )
-    .unwrap()
-    .into_raw()
+
+pub mod neat;
+/// Formats the sum of two numbers as string.
+#[pyfunction]
+fn load(_py: Python, file_path:&str) -> PyResult<PyObject> {
+    let aliases:HashMap<String, Vec<VType>> = HashMap::new();
+    //println!("{:?}", serialize(file_path, &aliases).to_object(_py));
+    Ok(serialize(file_path, &aliases).to_object(_py))
+}
+
+/// A Python module implemented in Rust.
+#[pymodule]
+#[pyo3(name = "neat_notation")]
+fn neat_notation(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(load, m)?)?;
+    Ok(())
 }

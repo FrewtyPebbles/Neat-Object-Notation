@@ -1,8 +1,9 @@
 use std::any::{TypeId};
 
-use indexmap::IndexMap;
 
-use serde::{Serialize, Serializer, ser::{SerializeMap, SerializeSeq}};
+use indexmap::IndexMap;
+use pyo3::{types::{IntoPyDict, PyDict, PyList}, IntoPy, ToPyObject, ffi::PyObject};
+use pyo3::prelude::*;
 
 pub enum ScopeType {
     None,
@@ -148,94 +149,7 @@ pub struct SerializedNode {
     pub value: NDSType,
 }
 
-//SERIALIZATION
-impl Serialize for SerializedNode {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer
-    {
-        let typename = std::any::type_name::<S>();
-        if typename.contains("serde_json") {
-            match self.value.clone() {
-                NDSType::Hashmap(val) => {
-                    let mut map = serializer.serialize_map(Some(val.len()))?;
-                    for (key, value) in val.iter() {
-                        match key {
-                            NDSKeyType::Int(kval) => {map.serialize_entry(kval, value)?;},
-                            NDSKeyType::Str(kval) => {map.serialize_entry(kval, value)?;},
-                            NDSKeyType::Bool(kval) => {},
-                            NDSKeyType::Null => {map.serialize_entry(&Option::<char>::None, value)?;},
-                            NDSKeyType::Blank => {},
-                        };
-                    }
-                    map.end()
-                },
-                NDSType::List(val) => {
-                    let mut seq = serializer.serialize_seq(Some(val.len()))?;
-                    for value in val.iter() {
-                        seq.serialize_element(value)?;
-                    }
-                    seq.end()
-                },
-                NDSType::Int(val) => {
-                    serializer.serialize_i64(val)
-                },
-                NDSType::Str(val) => {
-                    serializer.serialize_str(val.as_str())
-                },
-                NDSType::Float(val) => {
-                    serializer.serialize_f64(val)
-                },
-                NDSType::Bool(val) => {
-                    serializer.serialize_bool(val)
-                },
-                NDSType::Null => {
-                    serializer.serialize_none()
-                },
-            }
-        }
-        else {
-            match self.value.clone() {
-                NDSType::Hashmap(mut val) => {
-                    let mut map = serializer.serialize_map(Some(val.len()))?;
-                    for (key, value) in val.iter() {
-                        match key {
-                            NDSKeyType::Int(kval) => {map.serialize_entry(kval, value)?;},
-                            NDSKeyType::Str(kval) => {map.serialize_entry(kval, value)?;},
-                            NDSKeyType::Bool(kval) => {map.serialize_entry(kval, value)?;},
-                            NDSKeyType::Null => {map.serialize_entry(&Option::<char>::None, value)?;},
-                            NDSKeyType::Blank => {map.serialize_entry(&Option::<char>::None, value)?;},
-                        };
-                    }
-                    map.end()
-                },
-                NDSType::List(val) => {
-                    let mut seq = serializer.serialize_seq(Some(val.len()))?;
-                    for value in val.iter() {
-                        seq.serialize_element(value)?;
-                    }
-                    seq.end()
-                },
-                NDSType::Int(val) => {
-                    serializer.serialize_i64(val)
-                },
-                NDSType::Str(val) => {
-                    serializer.serialize_str(val.as_str())
-                },
-                NDSType::Float(val) => {
-                    serializer.serialize_f64(val)
-                },
-                NDSType::Bool(val) => {
-                    serializer.serialize_bool(val)
-                },
-                NDSType::Null => {
-                    serializer.serialize_none()
-                },
-            }
-        }
-        
-    }
-}
+
 
 impl SerializedNode {
     //Must use getters and setters to ensure heterogenious datatypes are accessed correctly.
@@ -271,5 +185,52 @@ impl SerializedNode {
                 return Err(String::from("Not an indexable type"));
             }
         };
+    }
+}
+
+
+impl ToPyObject for SerializedNode {
+    fn to_object(&self, py: Python<'_>) -> pyo3::PyObject {
+        self.value.to_object(py)
+    }
+}
+
+impl ToPyObject for NDSType {
+    fn to_object(&self, py: Python<'_>) -> pyo3::PyObject {
+        match self {
+            NDSType::Hashmap(map) => {
+                let mut python_dict:Vec<(Py<PyAny>, Py<PyAny>)> = vec![];
+                for (key, val) in map.iter() {
+                    python_dict.push((key.to_object(py), val.to_object(py)));
+                }
+                return python_dict.into_py_dict(py).to_object(py);
+            },
+            NDSType::List(list) => {
+                let mut ret_list:Vec<Py<PyAny>> = vec![];
+                for item in list.iter() {
+                    ret_list.push(item.to_object(py));
+                }
+                return ret_list.to_object(py);
+            },
+            NDSType::Int(val) => {
+                let py_obj = val.into_py(py);
+                return py_obj;
+            },
+            NDSType::Str(val) => {return val.into_py(py)},
+            NDSType::Float(val) => {return val.into_py(py)},
+            NDSType::Bool(val) => {return val.into_py(py)},
+            NDSType::Null => {return "None".into_py(py)},
+        }
+    }
+}
+
+impl ToPyObject for NDSKeyType {
+    fn to_object(&self, py: Python<'_>) -> pyo3::PyObject {
+        match self {
+            NDSKeyType::Int(val) => {return val.into_py(py)},
+            NDSKeyType::Str(val) => {return val.into_py(py)},
+            NDSKeyType::Bool(val) => {return val.into_py(py)},
+            _ => {return 0.into_py(py)}
+        }
     }
 }

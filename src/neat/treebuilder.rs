@@ -20,7 +20,7 @@ fn alias_get(alias:String, aliases:HashMap<String, Vec<VType>>, mut curr_scope:&
 						curr_scope[0] = val[&NDSKeyType::Int(v.clone())].clone();
 					},
 					VType::String(v) => {
-						println!("{:?}, k={}",val, v);
+						//println!("{:?}, k={}",val, v);
 						curr_scope[0] = val[&NDSKeyType::Str(v.clone())].clone();
 					},
 					VType::Null => {
@@ -232,7 +232,7 @@ pub fn build_tree(token_list: Vec<Box<Token>>, is_dict:bool, file_path:&str, ali
 				let tlist_len = token_list.len();
 				let stack_len = current_used_stack.len();
 				let last_tok = token_list[tlist_len - 2].clone();
-				if tn > 1 {
+				if tn >= 1 {
 					if tlist_len > 1 && token_list[tn - 1].tok == PTok::Setter {
 						match &mut current_used_stack[stack_len-1].value {
 							NDSType::Hashmap(hm) => {
@@ -395,7 +395,7 @@ pub fn build_tree(token_list: Vec<Box<Token>>, is_dict:bool, file_path:&str, ali
 				}
 			},
 			PTok::EAlias => {
-				println!("{:?}", alias_scope);
+				//println!("{:?}", alias_scope);
 				let mut alias_scope_1_len = alias_scope.1.len();
 				let mut alias_scope_0_len = alias_scope.0.len();
 				let mut sets_scope = *alias_scope.1[alias_scope_1_len - 1][0].clone();
