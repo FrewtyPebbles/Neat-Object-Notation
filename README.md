@@ -1,5 +1,9 @@
 # Neat Object Notation 0.3.1
 
+```
+pip install neat-notation
+```
+
  To load your .neat file into python, call `neat_notation.load(filename:str)`.  It will return a dictionary/list containing the content of your file.
 
  A smart, modular and readable configuration file format for complex multifile solutions.
