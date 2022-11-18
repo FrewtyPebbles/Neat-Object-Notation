@@ -1,6 +1,6 @@
 [package]
 name = "neat_notation"
-version = "0.4.13"
+version = "0.5.13"
 edition = "2021"
 exclude = ["/dist"]
 

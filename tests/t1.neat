@@ -1,0 +1,24 @@
+[section]
+	<list section>
+		 - "abc"
+		 - 123
+		 "bla bla bla"
+		 {"abc":(1, 2, 3, 4), "qqq":4}
+		 ""
+		 - 3
+		 - (123, 456)
+		[
+			 "apples": (1,2,3,4)
+			 1: true
+			 2: false
+			 3: "abc"
+			 4: ?
+		]
+	<->
+	 5 : 2
+	 "123": (true)
+	 [inner section]
+		"abc":{"true":("1", 5, 2)}
+		"def":(1, 2, 3, 4)
+	 [-]
+[-]

@@ -1,0 +1,35 @@
+~dict
+[images]
+	[shelf.png]
+		[operations]
+			<desaturate>
+				50
+				True
+			<->
+		[-]
+		"save" : "shelfEDIT.png"
+	[-]
+	[steak.jpg]
+		[operations]
+			<contrast>
+				30
+				True
+			<->
+			<mosaic_blur>
+				10
+				3
+				True
+			<->
+		[-]
+		"save" : "steakEDIT.jpg"
+	[-]
+	[testimg.jpg]
+		[operations]
+			<bnw>
+				100
+				True
+			<->
+		[-]
+		"save" : "testimgEDIT.jpg"
+	[-]
+[-]

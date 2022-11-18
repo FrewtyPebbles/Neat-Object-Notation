@@ -12,7 +12,7 @@ pub enum ScopeType {
     Struct,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum ValWrap {
     None,
     Keyword,
@@ -21,6 +21,7 @@ pub enum ValWrap {
     StringDouble,
     Section,
     ListSection,
+    EnvVar
 }
 #[derive(PartialEq, Debug, Clone)]
 pub enum PTok {

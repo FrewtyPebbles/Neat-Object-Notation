@@ -1,4 +1,4 @@
-# Neat Object Notation 0.3.1
+# Neat Object Notation 0.5.13
 
 ```
 pip install neat-notation
@@ -142,3 +142,40 @@ alias_name
 | Result:
 | {"section name":[{"inner section name":{"some key":True,"some other key":False},"another key":"abc"}]}
 ```
+
+## Environment Variables
+
+Environment variables can be used in strings and section keys.
+
+```
+| For this example lets say ENVIRONMENT_VARIABLE_NAME = "3"
+
+[:{ENVIRONMENT_VARIABLE_NAME}:]
+	":{ENVIRONMENT_VARIABLE_NAME}:" : "this is ENVIRONMENT_VARIABLE_NAME's value -> :{ENVIRONMENT_VARIABLE_NAME}:"
+[-]
+
+| output:
+| {'3': {'3': 'This is ENVIRONMENT_VARIABLE_NAME's value -> 3'}}
+```
+
+To denote an environment variable wrap the variable name in `:{` and `}:` it works the same way as an f-string in python.
+
+## Auto-Increment
+
+When inside a dictionary you can prefix values with `- value` to autoincrement their key as an integer from the last integer key you set. For example:
+
+```
+[section]
+	- "foo"
+	- "bar"
+	- 123
+	7: true
+	- 0.1
+	- -22.2
+	- -12
+[-]
+
+| output:
+| {"section":{0: "foo", 1: "bar", 2: 123, 7: True, 8: 0.1, 9: -22.2, 10: -12}}
+```
+

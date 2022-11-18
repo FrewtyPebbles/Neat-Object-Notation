@@ -1,4 +1,4 @@
-use std::{fs, path::{Path, PathBuf}, collections::HashMap};
+use std::{fs, path::{Path, PathBuf}, collections::HashMap, env};
 
 use crate::neat::datatypes::VType;
 
@@ -267,9 +267,11 @@ pub fn serialize(file_path: &str, alias_vec:&HashMap<String, Vec<VType>>) -> Box
     let file_content = fs::read_to_string(file_path).unwrap();
     let mut token_vec: Vec<Box<Token>> = vec![];
     let mut val_wrap = ValWrap::None;
+    let mut last_val_wrap = ValWrap::None;
     let scope_type_stack = vec![ScopeType::None];
     //this acts as a buffer for the current token
     let mut string_buffer = String::new();
+    let mut env_buffer = String::new();
     let mut last_character = '\t';
     let mut is_dict = true;
     let mut alias_list:HashMap<String, Vec<VType>> = alias_vec.clone();
@@ -398,15 +400,16 @@ pub fn serialize(file_path: &str, alias_vec:&HashMap<String, Vec<VType>>) -> Box
 
         //LINE LOOP
         for (cn, curr_character) in line.clone().chars().enumerate() {
-            if curr_character ==' ' && last_character == '-' {
-                string_buffer.pop();
-            }
             if val_wrap == ValWrap::None {
+                if curr_character ==' ' && if string_buffer.chars().collect::<Vec<char>>().len() > 0 {string_buffer.chars().last().unwrap() == '-'} else {false} {
+                    string_buffer.pop();
+                }
                 if curr_character.is_alphanumeric()
                     || curr_character == '?'
                     || curr_character == '/'
                     || curr_character == '.'
                 {
+                    //println!("current char : {curr_character}");
                     string_buffer.push(curr_character.clone());
                     continue;
                 } else if string_buffer != "" {
@@ -456,6 +459,7 @@ pub fn serialize(file_path: &str, alias_vec:&HashMap<String, Vec<VType>>) -> Box
                             tok: PTok::Literal,
                         }));
                     } else if string_buffer.chars().enumerate().all(|(ilcn, il_char)| il_char.is_numeric() || (ilcn == 0 && il_char == '-')) {
+                        //println!("{string_buffer} {last_character}");
                         token_vec.push(Box::new(Token {
                             v_type: determine_type(VType::Int(0), string_buffer.clone()),
                             tok: PTok::Literal,
@@ -463,6 +467,7 @@ pub fn serialize(file_path: &str, alias_vec:&HashMap<String, Vec<VType>>) -> Box
                     } else if string_buffer
                         .chars().enumerate().all(|(ilcn, il_char)| il_char.is_numeric() || (ilcn == 0 && il_char == '-') || il_char=='.')
                     {
+                        //println!("{string_buffer} {last_character}");
                         token_vec.push(Box::new(Token {
                             v_type: determine_type(VType::Float(0.0), string_buffer.clone()),
                             tok: PTok::Literal,
@@ -537,7 +542,7 @@ pub fn serialize(file_path: &str, alias_vec:&HashMap<String, Vec<VType>>) -> Box
                         token_vec.push(new_tok);
                     }
                     ' ' => {
-                        if last_character == '-' {
+                        if if cn > 0 {line.chars().collect::<Vec<char>>()[cn - 1] == '-'} else {false} {
                             string_buffer.pop();
                             token_vec.push(Box::new(Token {
                                 v_type: VType::Blank,
@@ -550,6 +555,30 @@ pub fn serialize(file_path: &str, alias_vec:&HashMap<String, Vec<VType>>) -> Box
                     }
                 }
             } else {
+                let len_str = string_buffer.len();
+                if last_character == ':' && curr_character == '{' && if len_str >= 2 {string_buffer.chars().collect::<Vec<char>>()[len_str - 2] != '\\'} else {true} { //beginning
+                    string_buffer.pop();
+                    last_val_wrap = val_wrap.clone();
+                    val_wrap = ValWrap::EnvVar;
+                    continue;
+                } else if last_character == '}' && curr_character == ':' && if len_str >= 2 {env_buffer.chars().collect::<Vec<char>>()[env_buffer.len() - 2] != '\\'} else {true} { //end
+                    env_buffer.pop();
+                    string_buffer += env::var(env_buffer.clone()).expect(format!("Unable to find the specified environment variable {env_buffer}").as_str()).as_str();
+                    val_wrap = last_val_wrap.clone();
+                    last_val_wrap = ValWrap::None;
+                    env_buffer = String::new();
+                    continue;
+                } else if last_character == ':' && curr_character == '{' && if len_str >= 2 {string_buffer.chars().collect::<Vec<char>>()[len_str - 2] == '\\'} else {false} { //backslash
+                    string_buffer.pop();
+                    string_buffer.pop();
+                    string_buffer += ":{";
+                    continue;
+                } else if last_character == '}' && curr_character == ':' && if len_str >= 2 {string_buffer.chars().collect::<Vec<char>>()[len_str - 2] == '\\'} else {false} { //backslash
+                    string_buffer.pop();
+                    string_buffer.pop();
+                    string_buffer += "}:";
+                    continue;
+                }
                 match val_wrap {
                     ValWrap::Section => {
                         if curr_character == ']' {
@@ -616,6 +645,9 @@ pub fn serialize(file_path: &str, alias_vec:&HashMap<String, Vec<VType>>) -> Box
                         } else {
                             string_buffer.push(curr_character.clone());
                         }
+                    }
+                    ValWrap::EnvVar => { //append to env var buffer
+                        env_buffer.push(curr_character.clone())
                     }
                     _ => {}
                 }

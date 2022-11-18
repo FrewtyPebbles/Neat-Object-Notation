@@ -11,7 +11,7 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: PyPy",
     "License :: OSI Approved :: MIT License"
 ]
-version = "0.4.13"
+version = "0.5.13"
 authors = [
   { name="William A. Lim", email="frewtypebbles@gmail.com" },
 ]
@@ -19,5 +19,5 @@ description = "A smart, modular and readable configuration file format for compl
 readme = "README.md"
 
 [project.urls]
-"Homepage" = "https://github.com/FrewtyPebbles/Neat-Object-Notation"
+"Homepage" = "https://github.com/FrewtyPebbles/Neat-Object-Notation/tree/neat-python"
 "Bug Tracker" = "https://github.com/FrewtyPebbles/Neat-Object-Notation/issues"

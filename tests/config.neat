@@ -1,0 +1,32 @@
+~dict
+mod class : 'grades', 'trash'
+
+alias trash_bin : [trash]
+
+<William's classes>
+	"CPSC DATASTRUCTURES"
+	"CPSC DATABASES AND FILESTRUCTURES"
+<->
+<Ludia's classes>
+	"CHEMISTRY"
+	"PYTHON/JAVA"
+<->
+
+[names/ages]
+	"William":22
+	"Ludia":21
+[-]
+
+alias n_a : [names/ages]
+
+n_a
+	"jef":49
+/-/
+
+trash_bin
+	3 : "abc"
+	- "abc"
+	- "abc"
+	- "abc"
+	- "abc"
+/-/

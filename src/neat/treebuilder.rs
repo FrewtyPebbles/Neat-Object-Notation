@@ -91,7 +91,7 @@ fn alias_set(aliases:Vec<VType>, mut curr_scope:&mut Box<SerializedNode>, set_sc
 
 pub fn build_tree(token_list: Vec<Box<Token>>, is_dict:bool, file_path:&str, alias_vec:&HashMap<String, Vec<VType>>) -> Box<SerializedNode> {
 	let mut tree_stack:Vec<Box<SerializedNode>> = vec![];
-	let mut key_stack:Vec<NDSKeyType> = vec![NDSKeyType::Blank];
+	let mut key_stack:Vec<NDSKeyType> = vec![];
 	let mut aliases:HashMap<String, Vec<VType>> = alias_vec.clone();
 	let mut current_used_stack = &mut tree_stack;
 	let mut alias_scope:(Vec<Vec<VType>>, Vec<Vec<Box<SerializedNode>>>) = (vec![], vec![]);// if not empty then use this scope instead
@@ -112,12 +112,14 @@ pub fn build_tree(token_list: Vec<Box<Token>>, is_dict:bool, file_path:&str, ali
 			PTok::SList => {
 				match curr_tok.v_type {
 					VType::Blank => {
-						key_stack.push(NDSKeyType::Blank);
+						//key_stack.push(NDSKeyType::Blank);
 					},
 					VType::Bool(val) => {
 						key_stack.push(NDSKeyType::Bool(val));
 					},
 					VType::Int(val) => {
+						let num_stack_len = num_stack.len();
+						num_stack[num_stack_len - 1] = val.clone();
 						key_stack.push(NDSKeyType::Int(val));
 					},
 					VType::Float(_) => {},
@@ -140,7 +142,7 @@ pub fn build_tree(token_list: Vec<Box<Token>>, is_dict:bool, file_path:&str, ali
 						
 						NDSType::List(vector) =>{
 							vector.push(new_value);
-							key_stack.pop();
+							//key_stack.pop();
 							current_used_stack.pop();
 						},
 						NDSType::Hashmap(hashmap) =>{
@@ -155,12 +157,14 @@ pub fn build_tree(token_list: Vec<Box<Token>>, is_dict:bool, file_path:&str, ali
 			PTok::SSection => {
 				match curr_tok.v_type {
 					VType::Blank => {
-						key_stack.push(NDSKeyType::Blank);
+						//key_stack.push(NDSKeyType::Blank);
 					},
 					VType::Bool(val) => {
 						key_stack.push(NDSKeyType::Bool(val));
 					},
 					VType::Int(val) => {
+						let num_stack_len = num_stack.len();
+						num_stack[num_stack_len - 1] = val.clone();
 						key_stack.push(NDSKeyType::Int(val));
 					},
 					VType::Float(_) => {},
@@ -190,6 +194,7 @@ pub fn build_tree(token_list: Vec<Box<Token>>, is_dict:bool, file_path:&str, ali
 								match &mut new_hm.value {
 									NDSType::Hashmap(hm) => {
 										hm.insert(key_stack.last().unwrap().clone(), new_value);
+										key_stack.pop();
 									},
 									_ => {
 
@@ -200,11 +205,11 @@ pub fn build_tree(token_list: Vec<Box<Token>>, is_dict:bool, file_path:&str, ali
 						},
 						NDSType::Hashmap(hashmap) =>{
 							hashmap.insert(key_stack.last().unwrap().clone(), new_value);
-							
+							key_stack.pop();
 						},
 						_ => {}
 					}
-					key_stack.pop();
+					
 					current_used_stack.pop();
 				}
 				num_stack.pop();
@@ -216,6 +221,7 @@ pub fn build_tree(token_list: Vec<Box<Token>>, is_dict:bool, file_path:&str, ali
 					VType::Int(val) => {
 						let num_stack_len = num_stack.len();
 						num_stack[num_stack_len - 1] = val.clone();
+						//println!("{:?} {:?}", key_stack, NDSKeyType::Int(num_stack[num_stack_len - 1].clone()));
 						key_stack.push(NDSKeyType::Int(val));
 					},
 					VType::String(val) => key_stack.push(NDSKeyType::Str(val)),
@@ -233,112 +239,53 @@ pub fn build_tree(token_list: Vec<Box<Token>>, is_dict:bool, file_path:&str, ali
 				let stack_len = current_used_stack.len();
 				let last_tok = token_list[tlist_len - 2].clone();
 				if tn >= 1 {
-					if tlist_len > 1 && token_list[tn - 1].tok == PTok::Setter {
-						match &mut current_used_stack[stack_len-1].value {
-							NDSType::Hashmap(hm) => {
-								match curr_tok.v_type {
-									VType::Blank => {},
-									VType::Bool(val) => {
-										hm.insert(key_stack.last().unwrap().clone(), Box::new(SerializedNode { value: NDSType::Bool(val) }));
-									},
-									VType::Int(val) => {
-										hm.insert(key_stack.last().unwrap().clone(), Box::new(SerializedNode { value: NDSType::Int(val) }));
-									},
-									VType::Float(val) => {
-										hm.insert(key_stack.last().unwrap().clone(), Box::new(SerializedNode { value: NDSType::Float(val) }));
-									},
-									VType::String(val) => {
-										hm.insert(key_stack.last().unwrap().clone(), Box::new(SerializedNode { value: NDSType::Str(val) }));
-									},
-									VType::Null => {
-										hm.insert(key_stack.last().unwrap().clone(), Box::new(SerializedNode { value: NDSType::Null }));
-									},
-									VType::Alias(_) => todo!()
-								}
-								key_stack.pop();
-							},
-							univ => {
-								eprintln!("Error: Attempted to supply a key inside a list. {:?}", univ);
+				
+					match &mut current_used_stack[stack_len-1].value {
+						NDSType::List(vec) => {
+							match curr_tok.v_type {
+								VType::Blank => {},
+								VType::Bool(val) => {
+									vec.push(Box::new(SerializedNode { value: NDSType::Bool(val) }));
+								},
+								VType::Int(val) => {
+									vec.push(Box::new(SerializedNode { value: NDSType::Int(val) }));
+								},
+								VType::Float(val) => {
+									vec.push(Box::new(SerializedNode { value: NDSType::Float(val) }));
+								},
+								VType::String(val) => {
+									vec.push(Box::new(SerializedNode { value: NDSType::Str(val) }));
+								},
+								VType::Null => {
+									vec.push(Box::new(SerializedNode { value: NDSType::Null }));
+								},
+								VType::Alias(_) => todo!()
 							}
-						}
-					}
-					else if tlist_len > 1 && token_list[tn - 1].tok == PTok::AutoInc {
-						match &mut current_used_stack[stack_len-1].value {
-							NDSType::Hashmap(hm) => {
-								match curr_tok.v_type {
-									VType::Blank => {},
-									VType::Bool(val) => {
-										hm.insert(NDSKeyType::Int(num_stack.last().unwrap().clone()), Box::new(SerializedNode { value: NDSType::Bool(val) }));
-									},
-									VType::Int(val) => {
-										hm.insert(NDSKeyType::Int(num_stack.last().unwrap().clone()), Box::new(SerializedNode { value: NDSType::Int(val) }));
-									},
-									VType::Float(val) => {
-										hm.insert(NDSKeyType::Int(num_stack.last().unwrap().clone()), Box::new(SerializedNode { value: NDSType::Float(val) }));
-									},
-									VType::String(val) => {
-										hm.insert(NDSKeyType::Int(num_stack.last().unwrap().clone()), Box::new(SerializedNode { value: NDSType::Str(val) }));
-									},
-									VType::Null => {
-										hm.insert(NDSKeyType::Int(num_stack.last().unwrap().clone()), Box::new(SerializedNode { value: NDSType::Null }));
-									},
-									VType::Alias(_) => todo!()
-								}
-								//key_stack.pop();
-							},
-							univ => {
-								eprintln!("Error: Attempted to supply autoincrement inside a list. {:?}", univ);
+						},
+						NDSType::Hashmap(hm) => {
+							match curr_tok.v_type {
+								VType::Blank => {},
+								VType::Bool(val) => {
+									hm.insert(key_stack.last().unwrap().clone(), Box::new(SerializedNode { value: NDSType::Bool(val) }));
+								},
+								VType::Int(val) => {
+									hm.insert(key_stack.last().unwrap().clone(), Box::new(SerializedNode { value: NDSType::Int(val) }));
+								},
+								VType::Float(val) => {
+									hm.insert(key_stack.last().unwrap().clone(), Box::new(SerializedNode { value: NDSType::Float(val) }));
+								},
+								VType::String(val) => {
+									hm.insert(key_stack.last().unwrap().clone(), Box::new(SerializedNode { value: NDSType::Str(val) }));
+								},
+								VType::Null => {
+									hm.insert(key_stack.last().unwrap().clone(), Box::new(SerializedNode { value: NDSType::Null }));
+								},
+								VType::Alias(_) => todo!()
 							}
-						}
-					}
-					else {
-						match &mut current_used_stack[stack_len-1].value {
-							NDSType::List(vec) => {
-								match curr_tok.v_type {
-									VType::Blank => {},
-									VType::Bool(val) => {
-										vec.push(Box::new(SerializedNode { value: NDSType::Bool(val) }));
-									},
-									VType::Int(val) => {
-										vec.push(Box::new(SerializedNode { value: NDSType::Int(val) }));
-									},
-									VType::Float(val) => {
-										vec.push(Box::new(SerializedNode { value: NDSType::Float(val) }));
-									},
-									VType::String(val) => {
-										vec.push(Box::new(SerializedNode { value: NDSType::Str(val) }));
-									},
-									VType::Null => {
-										vec.push(Box::new(SerializedNode { value: NDSType::Null }));
-									},
-									VType::Alias(_) => todo!()
-								}
-							},
-							NDSType::Hashmap(hm) => {
-								match curr_tok.v_type {
-									VType::Blank => {},
-									VType::Bool(val) => {
-										hm.insert(key_stack.last().unwrap().clone(), Box::new(SerializedNode { value: NDSType::Bool(val) }));
-									},
-									VType::Int(val) => {
-										hm.insert(key_stack.last().unwrap().clone(), Box::new(SerializedNode { value: NDSType::Int(val) }));
-									},
-									VType::Float(val) => {
-										hm.insert(key_stack.last().unwrap().clone(), Box::new(SerializedNode { value: NDSType::Float(val) }));
-									},
-									VType::String(val) => {
-										hm.insert(key_stack.last().unwrap().clone(), Box::new(SerializedNode { value: NDSType::Str(val) }));
-									},
-									VType::Null => {
-										hm.insert(key_stack.last().unwrap().clone(), Box::new(SerializedNode { value: NDSType::Null }));
-									},
-									VType::Alias(_) => todo!()
-								}
-								key_stack.pop();
-							},
-							univ => {
-								eprintln!("Error: Key for {:?} supplied in a list. {:?}", curr_tok.v_type, univ);
-							}
+							key_stack.pop();
+						},
+						univ => {
+							eprintln!("Error: Key for {:?} supplied in a list. {:?}", curr_tok.v_type, univ);
 						}
 					}
 				}
@@ -415,11 +362,15 @@ pub fn build_tree(token_list: Vec<Box<Token>>, is_dict:bool, file_path:&str, ali
 			}
 			PTok::AutoInc => {
 				let num_stack_len = num_stack.len();
+				let num = num_stack[num_stack_len - 1].clone();
+				//println!("{num}");
 				num_stack[num_stack_len - 1] += 1;
+				key_stack.push(NDSKeyType::Int(num_stack[num_stack_len - 1].clone()));
+				//println!("{tn} {:?} {:?}", key_stack, NDSKeyType::Int(num_stack[num_stack_len - 1].clone()));
+				//[Token { v_type: String("section"), tok: SSection }, Token { v_type: Blank, tok: AutoInc }, Token { v_type: String("foo"), tok: Literal }, Token { v_type: Blank, tok: AutoInc }, Token { v_type: String("- bar"), tok: Literal }, Token { v_type: Blank, tok: AutoInc }, Token { v_type: Int(-123), tok: Literal }, Token { v_type: Blank, tok: AutoInc }, Token { v_type: Int(7), tok: Setter }, Token { v_type: Bool(true), tok: Literal }, Token { v_type: Blank, tok: AutoInc }, Token { v_type: Blank, tok: SList }, Token { v_type: Float(-0.12), tok: Literal }, Token { v_type: Int(1), tok: Literal }, Token { v_type: Blank, tok: EList }, Token { v_type: Blank, tok: AutoInc }, Token { v_type: Float(-22.2323), tok: Literal }, Token { v_type: Blank, tok: AutoInc }, Token { v_type: Blank, tok: ESection }]
 			}
 			_ => {}
 		}
 	}
-	
 	return tree_stack[0].clone();
 }
