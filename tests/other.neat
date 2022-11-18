@@ -1,0 +1,18 @@
+~dict
+
+[colors]
+  "red": ("bergundy", "maroon")
+  "blue": ("cyan", "sky", "navy", "periwinkle")
+[-]
+
+<persons>
+  "Margeret"
+  "Joey"
+  "Albert"
+  {
+    [classes]
+      "CPSC": "A+"
+      "CHEM": "A-"
+    [-]
+  }
+<->

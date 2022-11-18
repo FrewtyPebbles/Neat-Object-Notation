@@ -1,4 +1,4 @@
-# Neat Object Notation 0.5.14
+# Neat Object Notation 0.5.15
 
 ```
 pip install neat-notation

@@ -1,32 +1,25 @@
-~dict
-mod class : 'grades', 'trash'
+ ~dict
 
-alias trash_bin : [trash]
+mod other : 'colors', 'persons'
+alias colors : [colors]
 
-<William's classes>
-	"CPSC DATASTRUCTURES"
-	"CPSC DATABASES AND FILESTRUCTURES"
-<->
-<Ludia's classes>
-	"CHEMISTRY"
-	"PYTHON/JAVA"
-<->
+colors
+"yellow" : ("musturd", "amber", "chartreuse", "canary")
+/-/
 
-[names/ages]
-	"William":22
-	"Ludia":21
+[animals]
+  "fish": ("John", "Marry")
+  "dogs": ("Jimmy")
 [-]
 
-alias n_a : [names/ages]
-
-n_a
-	"jef":49
-/-/
-
-trash_bin
-	3 : "abc"
-	- "abc"
-	- "abc"
-	- "abc"
-	- "abc"
-/-/
+<people>
+  "Margeret"
+  "Joey"
+  "Albert"
+  {
+    [classes]
+      "CPSC": "A+"
+      "CHEM": "A-"
+    [-]
+  }
+<->

@@ -112,7 +112,7 @@ pub fn build_tree(token_list: Vec<Box<Token>>, is_dict:bool, file_path:&str, ali
 			PTok::SList => {
 				match curr_tok.v_type {
 					VType::Blank => {
-						//key_stack.push(NDSKeyType::Blank);
+						key_stack.push(NDSKeyType::Blank);
 					},
 					VType::Bool(val) => {
 						key_stack.push(NDSKeyType::Bool(val));
@@ -142,13 +142,15 @@ pub fn build_tree(token_list: Vec<Box<Token>>, is_dict:bool, file_path:&str, ali
 						
 						NDSType::List(vector) =>{
 							vector.push(new_value);
-							//key_stack.pop();
+							key_stack.pop();
 							current_used_stack.pop();
 						},
 						NDSType::Hashmap(hashmap) =>{
-							hashmap.insert(key_stack.last().unwrap().clone(), new_value);
-							key_stack.pop();
-							current_used_stack.pop();
+							if key_stack.len() > 0 {
+								hashmap.insert(key_stack.last().unwrap().clone(), new_value);
+								key_stack.pop();
+								current_used_stack.pop();
+							}
 						},
 						_ => {}
 					}
@@ -157,7 +159,7 @@ pub fn build_tree(token_list: Vec<Box<Token>>, is_dict:bool, file_path:&str, ali
 			PTok::SSection => {
 				match curr_tok.v_type {
 					VType::Blank => {
-						//key_stack.push(NDSKeyType::Blank);
+						key_stack.push(NDSKeyType::Blank);
 					},
 					VType::Bool(val) => {
 						key_stack.push(NDSKeyType::Bool(val));
@@ -194,7 +196,7 @@ pub fn build_tree(token_list: Vec<Box<Token>>, is_dict:bool, file_path:&str, ali
 								match &mut new_hm.value {
 									NDSType::Hashmap(hm) => {
 										hm.insert(key_stack.last().unwrap().clone(), new_value);
-										key_stack.pop();
+										
 									},
 									_ => {
 
@@ -205,11 +207,11 @@ pub fn build_tree(token_list: Vec<Box<Token>>, is_dict:bool, file_path:&str, ali
 						},
 						NDSType::Hashmap(hashmap) =>{
 							hashmap.insert(key_stack.last().unwrap().clone(), new_value);
-							key_stack.pop();
+							
 						},
 						_ => {}
 					}
-					
+					key_stack.pop();
 					current_used_stack.pop();
 				}
 				num_stack.pop();
