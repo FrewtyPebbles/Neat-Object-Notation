@@ -275,6 +275,7 @@ pub fn serialize(file_path: &str, alias_vec:&HashMap<String, Vec<VType>>) -> Box
     let mut last_character = '\t';
     let mut is_dict = true;
     let mut alias_list:HashMap<String, Vec<VType>> = alias_vec.clone();
+    let mut escaping = false;
     for (ln, raw_line) in file_content.clone().split("\n").enumerate() {
         let temp_line = format!("{} ", raw_line.trim());
         let line = temp_line.as_str();
@@ -555,29 +556,118 @@ pub fn serialize(file_path: &str, alias_vec:&HashMap<String, Vec<VType>>) -> Box
                     }
                 }
             } else {
-                let len_str = string_buffer.len();
-                if last_character == ':' && curr_character == '{' && if len_str >= 2 {string_buffer.chars().collect::<Vec<char>>()[len_str - 2] == '\\'} else {false} { //backslash
-                    string_buffer.pop();
-                    string_buffer.pop();
-                    string_buffer += ":{";
+                if curr_character == '\\' {
+                    if !escaping {
+                        escaping = true;
+                        continue;
+                    }
+                }
+                //println!("eb:{env_buffer}:ln:{ln}:cn:{cn}");
+                if last_character == ':' && curr_character == '{' && escaping { //backslash
+                    if val_wrap == ValWrap::EnvVar {
+                        env_buffer.pop();
+                        env_buffer += ":{";
+                        //println!("eb:{string_buffer}");
+                    } else {
+                        string_buffer.pop();
+                        string_buffer += ":{";
+                        //println!("sb:{string_buffer}");
+                    }
+                    escaping = false;
                     continue;
-                } else if last_character == '}' && curr_character == ':' && if len_str >= 2 {string_buffer.chars().collect::<Vec<char>>()[len_str - 2] == '\\'} else {false} { //backslash
-                    string_buffer.pop();
-                    string_buffer.pop();
-                    string_buffer += "}:";
+                } else if last_character == '}' && curr_character == ':' && escaping { //backslash
+                    if val_wrap == ValWrap::EnvVar {
+                        env_buffer.pop();
+                        env_buffer += "}:";
+                        //println!("eb:{string_buffer}");
+                    } else {
+                        string_buffer.pop();
+                        string_buffer += "}:";
+                        //println!("sb:{string_buffer}");
+                    }
+                    escaping = false;
                     continue;
-                } else if last_character == ':' && curr_character == '{' {//&& if len_str >= 2 {string_buffer.chars().collect::<Vec<char>>()[len_str - 2] != '\\'} else {true} { //beginning
+                } else if last_character == ':' && curr_character == '{' && !escaping {//&& if len_str >= 2 {string_buffer.chars().collect::<Vec<char>>()[len_str - 2] != '\\'} else {true} { //beginning
                     string_buffer.pop();
                     last_val_wrap = val_wrap.clone();
                     val_wrap = ValWrap::EnvVar;
                     continue;
-                } else if last_character == '}' && curr_character == ':' {// && (val_wrap != ValWrap::EnvVar || if env_buffer.len() >= 2 {env_buffer.chars().collect::<Vec<char>>()[env_buffer.len() - 2] != '\\'} else {true}) { //end
+                } else if last_character == '}' && curr_character == ':' && !escaping {// && (val_wrap != ValWrap::EnvVar || if env_buffer.len() >= 2 {env_buffer.chars().collect::<Vec<char>>()[env_buffer.len() - 2] != '\\'} else {true}) { //end
                     env_buffer.pop();
+                    //println!("eb:{env_buffer}");
                     string_buffer += env::var(env_buffer.clone()).expect(format!("Unable to find the specified environment variable {env_buffer}").as_str()).as_str();
                     val_wrap = last_val_wrap.clone();
                     last_val_wrap = ValWrap::None;
                     env_buffer = String::new();
                     continue;
+                } else if escaping {
+                    let mut buffer_ref:&mut String = &mut String::new();
+                    if val_wrap == ValWrap::EnvVar {
+                        buffer_ref = &mut env_buffer;
+                    } else {
+                        buffer_ref = &mut string_buffer;
+                    }
+                    //buffer_ref.pop();
+                    match curr_character {
+                        'n' => {
+                            escaping = false;
+                            buffer_ref.push('\n');
+                            continue;
+                        }
+                        '\\' => {
+                            escaping = false;
+                            buffer_ref.push(curr_character.clone());
+                            continue;
+                        }
+                        't' => {
+                            escaping = false;
+                            buffer_ref.push('\t');
+                            continue;
+                        }
+                        '[' => {
+                            escaping = false;
+                            buffer_ref.push(curr_character.clone());
+                            continue;
+                        }
+                        ']' => {
+                            escaping = false;
+                            buffer_ref.push(curr_character.clone());
+                            continue;
+                        }
+                        '(' => {
+                            escaping = false;
+                            buffer_ref.push(curr_character.clone());
+                            continue;
+                        }
+                        ')' => {
+                            escaping = false;
+                            buffer_ref.push(curr_character.clone());
+                            continue;
+                        }
+                        '<' => {
+                            escaping = false;
+                            buffer_ref.push(curr_character.clone());
+                            continue;
+                        }
+                        '"' => {
+                            escaping = false;
+                            buffer_ref.push(curr_character.clone());
+                            continue;
+                        }
+                        '\'' => {
+                            escaping = false;
+                            buffer_ref.push(curr_character.clone());
+                            continue;
+                        }
+                        '>' => {
+                            escaping = false;
+                            buffer_ref.push(curr_character.clone());
+                            continue;
+                        }
+                        _ => {
+
+                        }
+                    }
                 }
                 match val_wrap {
                     ValWrap::Section => {

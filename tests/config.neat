@@ -4,12 +4,12 @@ mod other : 'colors', 'persons'
 alias colors : [colors]
 
 colors
-"yellow" : ("musturd", "amber", "chartreuse", "canary")
+":{FOO}:" : ("musturd", "amber", "chartreuse", "canary")
 /-/
 
-[animals]
+[anima\\\]ls]
   "fish": ("John", "Marry")
-  "dogs": ("Jimmy")
+  "\\dogs": ("Jimmy")
 [-]
 
 <people>

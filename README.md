@@ -1,4 +1,4 @@
-# Neat Object Notation 0.5.15
+# Neat Object Notation 0.6.15
 
 ```
 pip install neat-notation
@@ -179,3 +179,14 @@ When inside a dictionary you can prefix values with `- value` to autoincrement t
 | {"section":{0: "foo", 1: "bar", 2: 123, 7: True, 8: 0.1, 9: -22.2, 10: -12}}
 ```
 
+## Escape Character
+
+Escape characters can be used to use syntax characters inside of their syntaxes or to use the combination of characters that creates a token such as the environment variable wrapping token as their literal characters, like so:
+
+```
+[section\] key\]]
+	"\:{this is my key\}:" : 123
+[-]
+| output:
+| {'section] key]': {':{this is my key}:': 123}}
+```

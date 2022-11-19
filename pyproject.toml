@@ -11,7 +11,7 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: PyPy",
     "License :: OSI Approved :: MIT License"
 ]
-version = "0.5.15"
+version = "0.6.15"
 authors = [
   { name="William A. Lim", email="frewtypebbles@gmail.com" },
 ]
