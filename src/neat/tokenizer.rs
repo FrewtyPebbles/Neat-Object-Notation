@@ -121,7 +121,7 @@ pub fn create_mod_token(raw_mod_string: String, origin_file_path:&str, alias_vec
     });
 }
 
-pub fn create_alias_token(raw_alias_string: String, mut alias_vec:&mut HashMap<String, Vec<VType>>){
+pub fn create_alias_token(mut raw_alias_string: String, mut alias_vec:&mut HashMap<String, Vec<VType>>){
     let mut alias_name = String::new();
     let mut is_quoting = ' ';
     let mut last_char = ' ';
@@ -129,6 +129,7 @@ pub fn create_alias_token(raw_alias_string: String, mut alias_vec:&mut HashMap<S
     let mut is_lhs = true;
     let mut quote_buffer = String::new();
     let mut object_path:Vec<VType> = vec![];
+    raw_alias_string.push(' ');
     for chr in raw_alias_string.chars() {
         match chr {
             '"' => {
@@ -259,6 +260,7 @@ pub fn create_alias_token(raw_alias_string: String, mut alias_vec:&mut HashMap<S
         }
         last_char = chr;
     }
+    
     //println!("{}: {:?}\n\n", alias_name,object_path);
     alias_vec.insert(alias_name.clone(), object_path);
 }

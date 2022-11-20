@@ -7,9 +7,9 @@ colors
 ":{FOO}:" : ("musturd", "amber", "chartreuse", "canary")
 /-/
 
-[anima\\\]ls]
+[animals]
   "fish": ("John", "Marry")
-  "\\dogs": ("Jimmy")
+  "dogs": ("Jimmy")
 [-]
 
 <people>
